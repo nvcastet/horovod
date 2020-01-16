@@ -117,7 +117,7 @@ def get_supported_instruction_set_flags(flags_to_check):
 
 def get_cpp_flags(build_ext):
     last_err = None
-    default_flags = ['-std=c++11', '-fPIC', '-O2', '-Wall', '-fassociative-math', '-ffast-math', '-ftree-vectorize', '-funsafe-math-optimizations']
+    default_flags = ['-std=c++30', '-fPIC', '-O2', '-Wall', '-fassociative-math', '-ffast-math', '-ftree-vectorize', '-funsafe-math-optimizations']
     avx_fma_flags = get_supported_instruction_set_flags(['-mf16c', '-mavx', '-mfma'])
     if sys.platform == 'darwin':
         # Darwin most likely will have Clang, which has libc++.
