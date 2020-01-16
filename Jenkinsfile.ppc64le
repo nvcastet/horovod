@@ -14,50 +14,64 @@ pipeline {
         }
     }
     stages {
+        stage ('UPDATE_GITHUB_STATUS') {
+            steps {
+                setBuildStatus("ppc64le Build/Tests Pending", "pending");
+            }
+        }
         stage ('BUILD_HOROVOD') {
             steps {
-                sh '''#!/usr/bin/env bash
-                      . ${CONDA_INIT}
-                      conda activate ${CONDA_ENV}
-                      set -xe
-                      HOROVOD_WITHOUT_MXNET=1 HOROVOD_WITHOUT_GLOO=1 HOROVOD_WITH_PYTORCH=1 HOROVOD_WITH_TENSORFLOW=1 \
-                          HOROVOD_CUDA_HOME=$CONDA_PREFIX HOROVOD_GPU_BROADCAST=NCCL HOROVOD_GPU_ALLREDUCE=NCCL \
-                          pip install -v . --no-cache-dir --no-deps
-                '''
+                sh 'env'
+                // sh '''#!/usr/bin/env bash
+                //       . ${CONDA_INIT}
+                //       conda activate ${CONDA_ENV}
+                //       set -xe
+                //       HOROVOD_WITHOUT_MXNET=1 HOROVOD_WITHOUT_GLOO=1 HOROVOD_WITH_PYTORCH=1 HOROVOD_WITH_TENSORFLOW=1 \
+                //           HOROVOD_CUDA_HOME=$CONDA_PREFIX HOROVOD_GPU_BROADCAST=NCCL HOROVOD_GPU_ALLREDUCE=NCCL \
+                //           pip install -v . --no-cache-dir --no-deps
+                // '''
             }
         }
-        stage ('TEST_HOROVOD') {
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    ansiColor('xterm') {
-                        sh '''#!/usr/bin/env bash
-                              . ${CONDA_INIT}
-                              conda activate ${CONDA_ENV}
-                              set -xe
-
-                              # TensorFlow unit tests
-                              horovodrun -n 2 -H localhost:2 --mpi-args="-pami_noib" pytest -k 'not multi_gpu' -v -s test/test_tensorflow.py
-                              # Container has only 2 GPUs, so run the 'multi_gpu' test seperatly on one process
-                              horovodrun -n 1 -H localhost:1 --mpi-args="-pami_noib" pytest -k 'multi_gpu' -v -s test/test_tensorflow.py
-
-                              # PyTorch unit tests
-                              horovodrun -n 2 -H localhost:2 --mpi-args="-pami_noib" pytest -v -s test/test_torch.py
-                        '''
-                    }
-                }
-            }
-        }
+        // stage ('TEST_HOROVOD') {
+        //     steps {
+        //         ansiColor('xterm') {
+        //             sh '''#!/usr/bin/env bash
+        //                   . ${CONDA_INIT}
+        //                   conda activate ${CONDA_ENV}
+        //                   set -xe
+        //
+        //                   # TensorFlow unit tests
+        //                   horovodrun -n 2 -H localhost:2 --mpi-args="-pami_noib" pytest -k 'not multi_gpu' -v -s test/test_tensorflow.py
+        //                   # Container has only 2 GPUs, so run the 'multi_gpu' test seperatly on one process
+        //                   horovodrun -n 1 -H localhost:1 --mpi-args="-pami_noib" pytest -k 'multi_gpu' -v -s test/test_tensorflow.py
+        //
+        //                   # PyTorch unit tests
+        //                   horovodrun -n 2 -H localhost:2 --mpi-args="-pami_noib" pytest -v -s test/test_torch.py
+        //             '''
+        //         }
+        //     }
+        // }
     } // end of stages
-    // post {
-    //     success {
-    //         githubNotify context: 'something test', description: 'It works',  status: 'SUCCESS'
-    //         //setBuildStatus("ppc64le Build/Tests Passed", "SUCCESS");
-    //     }
-    //     failure {
-    //         setBuildStatus("ppc64le Build/Tests Failed", "FAILURE");
-    //     }
-    //     unstable {
-    //         setBuildStatus("ppc64le Build/Tests Failed", "UNSTABLE");
-    //     }
-    // }
+    post {
+        success {
+            setBuildStatus("ppc64le Build/Tests Passed", "success");
+        }
+        failure {
+            setBuildStatus("ppc64le Build/Tests Failed", "failure");
+        }
+        unstable {
+            setBuildStatus("ppc64le Build/Tests Failed", "failure");
+            
+        }
+    }
 } //end of pipeline
+
+void setBuildStatus(String message, String state) {
+    withCredentials([usernamePassword(credentialsId: 'horovod_token_status', usernameVariable: 'user', passwordVariable: 'token')]) {
+        sh "curl -sS \"https://api.GitHub.com/repos/nvcastet/horovod/statuses/${GIT_COMMIT}?access_token=${token}\" \
+            -H \"Content-Type: application/json\" \
+            -X POST \
+            -d \"{\\\"state\\\": \\\"${state}\\\",\\\"context\\\": \\\"ppc64le-checks\\\", \\\"description\\\": \\\"${message}\\\", \
+            \\\"target_url\\\": \\\"https://powerci.osuosl.org/job/Horovod_PPC64LE_GPU_PIPELINE/view/change-requests/job/${BRANCH_NAME}/${BUILD_NUMBER}/console\\\"}\""
+    }
+}
