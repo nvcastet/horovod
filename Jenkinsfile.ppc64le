@@ -16,12 +16,16 @@ pipeline {
     stages {
         stage ('UPDATE_GITHUB_STATUS') {
             steps {
-                setBuildStatus("ppc64le Build/Tests Pending", "pending");
+                setBuildStatus("ppc64le Build/Tests Pending", "PENDING");
+                withCredentials([usernamePassword(credentialsId: 'nico_test', usernameVariable: 'user', passwordVariable: 'token')]) {
+                  sh "echo ${token}"
+                }
             }
         }
         stage ('BUILD_HOROVOD') {
             steps {
                 sh '''#!/usr/bin/env bash
+                      git submodule update --init --recursive
                       . ${CONDA_INIT}
                       conda activate ${CONDA_ENV}
                       set -xe
@@ -53,23 +57,18 @@ pipeline {
     } // end of stages
     post {
         success {
-            setBuildStatus("ppc64le Build/Tests Passed", "success");
+            setBuildStatus("ppc64le Build/Tests Passed", "SUCCESS");
         }
         failure {
-            setBuildStatus("ppc64le Build/Tests Failed", "failure");
+            setBuildStatus("ppc64le Build/Tests Failed", "FAILURE");
         }
         unstable {
-            setBuildStatus("ppc64le Build/Tests Failed", "failure");
+            setBuildStatus("ppc64le Build/Tests Failed", "FAILURE");
         }
     }
 } //end of pipeline
 
 void setBuildStatus(String message, String state) {
-    withCredentials([usernamePassword(credentialsId: 'horovod_token_status', usernameVariable: 'user', passwordVariable: 'token')]) {
-        sh "curl -sS \"https://api.GitHub.com/repos/nvcastet/horovod/statuses/${GIT_COMMIT}?access_token=${token}\" \
-            -H \"Content-Type: application/json\" \
-            -X POST \
-            -d \"{\\\"state\\\": \\\"${state}\\\",\\\"context\\\": \\\"ppc64le-checks\\\", \\\"description\\\": \\\"${message}\\\", \
-            \\\"target_url\\\": \\\"https://powerci.osuosl.org/job/Horovod_PPC64LE_GPU_PIPELINE/view/change-requests/job/${BRANCH_NAME}/${BUILD_NUMBER}/console\\\"}\""
-    }
+    githubNotify context: 'ppc64le-checks', description: "${message}",  status: "${state}",
+                 targetUrl: "https://powerci.osuosl.org/job/Horovod_PPC64LE_GPU_PIPELINE/view/change-requests/job/${BRANCH_NAME}/${BUILD_NUMBER}/console"
 }
