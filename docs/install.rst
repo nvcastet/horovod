@@ -220,10 +220,7 @@ Optional environment variables that can be set to configure the installation pro
 Possible values are given in curly brackets: {}.
 
 * ``HOROVOD_BUILD_ARCH_FLAGS`` - additional C++ compilation flags to pass in for your build architecture.
-* ``HOROVOD_MPICXX_SHOW`` - custom command to show MPI compilation flags (default: ``mpicxx -show``).
 * ``HOROVOD_CUDA_HOME`` - path where CUDA include and lib directories can be found.
-* ``HOROVOD_CUDA_INCLUDE`` - path to CUDA include directory.
-* ``HOROVOD_CUDA_LIB`` - path to CUDA lib directory.
 * ``HOROVOD_ROCM_HOME`` - path where ROCm include and lib directories can be found.
 * ``HOROVOD_NCCL_HOME`` - path where NCCL include and lib directories can be found.
 * ``HOROVOD_NCCL_INCLUDE`` - path to NCCL include directory.
